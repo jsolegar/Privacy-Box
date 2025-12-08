@@ -1,14 +1,27 @@
-import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer
+} from "recharts";
 
 export default function AdblockChart({ data }) {
+  if (!data || data.length === 0) return <p>No chart data</p>;
+
   return (
-    <BarChart width={350} height={200} data={data}>
-      <CartesianGrid stroke="#ccc" />
-      <XAxis dataKey="time" />
-      <YAxis />
-      <Tooltip />
-      <Bar dataKey="blocked" fill="#dc3545" />
-    </BarChart>
+    <div style={{ width: "100%", height: 250 }}>
+      <ResponsiveContainer>
+        <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="time" label={{ value: "t", position: "insideBottomRight", offset: -5 }} />
+          <YAxis />
+          <Tooltip />
+          <Line type="monotone" dataKey="blocked" stroke="#ff7300" dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
-
