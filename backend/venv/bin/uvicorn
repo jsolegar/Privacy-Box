@@ -1,4 +1,4 @@
-#!/home/ubuntu/TMA/backend/venv/bin/python3
+#!/home/kali/Privacy-Box/backend/venv/bin/python
 import sys
 from uvicorn.main import main
 if __name__ == '__main__':

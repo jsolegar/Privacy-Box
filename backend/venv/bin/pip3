@@ -1,4 +1,4 @@
-#!/home/ubuntu/TMA/backend/venv/bin/python3
+#!/home/kali/Privacy-Box/backend/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

@@ -13,7 +13,7 @@ export default function App() {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/tor");
+        const res = await fetch("/api/tor");
         const data = await res.json();
         setTor(data);
 
