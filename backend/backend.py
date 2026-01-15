@@ -1,5 +1,8 @@
 import time
+from pathlib import Path
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from stem.control import Controller
 
@@ -14,6 +17,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Path to the built React app
+STATIC_DIR = Path(__file__).parent / "static"
 
 _last = {"t": None, "r": None, "w": None}
 
@@ -57,3 +63,21 @@ def read_tor_stats():
 def tor():
     return read_tor_stats()
 
+# Mount static files (CSS, JS, images, etc.)
+if STATIC_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+    
+    # Serve index.html for all non-API routes (React Router support)
+    @app.get("/{full_path:path}")
+    async def serve_react_app(full_path: str):
+        # If it's an API route, let FastAPI handle it
+        if full_path.startswith("api/"):
+            return {"error": "API endpoint not found"}
+        
+        # Check if the requested file exists in static directory
+        file_path = STATIC_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        
+        # Otherwise, serve index.html for React Router
+        return FileResponse(STATIC_DIR / "index.html")

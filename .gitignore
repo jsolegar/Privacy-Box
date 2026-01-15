@@ -1,3 +1,6 @@
+# static files (build directory)
+backend/static/
+
 # Python
 venv/
 __pycache__/
