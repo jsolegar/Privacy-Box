@@ -24,6 +24,11 @@ _controller = None
 _last = {"t": None, "r": None, "w": None}
 _cached = {"t": 0.0, "data": None}  # cache corta para evitar martillar el ControlPort
 
+# Cache de metadatos de relays: fp -> {"ip": "...", "country": "ES"/None}
+_ns_cache = {}
+_ns_cache_t = 0.0
+_NS_CACHE_TTL = 10 * 60  # 10 minutos
+
 
 def _safe_int(val, default=0) -> int:
     try:
@@ -57,6 +62,52 @@ def _reset_controller():
     _controller = None
 
 
+def _maybe_clear_ns_cache():
+    global _ns_cache, _ns_cache_t
+    now = time.time()
+    if (now - _ns_cache_t) > _NS_CACHE_TTL:
+        _ns_cache = {}
+        _ns_cache_t = now
+
+
+def _relay_meta(c: Controller, fp: str):
+    """
+    Devuelve metadatos del relay:
+    - ip: address del relay (si Tor la conoce)
+    - country: código país (si Tor tiene GeoIP disponible)
+    Cacheado para no ralentizar.
+    """
+    global _ns_cache, _ns_cache_t
+    _maybe_clear_ns_cache()
+
+    if fp in _ns_cache:
+        return _ns_cache[fp]
+
+    ip = None
+    country = None
+
+    # 1) IP del relay desde el consensus (network status)
+    try:
+        ns = c.get_network_status(fp)
+        if ns is not None:
+            ip = getattr(ns, "address", None)
+    except Exception:
+        ip = None
+
+    # 2) País desde Tor (GeoIP). Puede devolver "??" si no hay info.
+    try:
+        if ip:
+            cc = c.get_info(f"ip-to-country/{ip}", default=None)
+            if cc and cc != "??":
+                country = cc
+    except Exception:
+        country = None
+
+    meta = {"ip": ip, "country": country}
+    _ns_cache[fp] = meta
+    return meta
+
+
 def read_tor_stats():
     """
     Lee stats de Tor (traffic + circuits). Cachea 0.5s para reducir carga.
@@ -87,11 +138,23 @@ def read_tor_stats():
             circuit_info = []
             for circ in circuits[:5]:
                 # circ.path: List[Tuple[fingerprint, nickname]]
+                path = []
+                for (fp, nick) in circ.path:
+                    meta = _relay_meta(c, fp)
+                    path.append(
+                        {
+                            "fp": fp,
+                            "nick": nick,
+                            "ip": meta["ip"],
+                            "country": meta["country"],
+                        }
+                    )
+
                 circuit_info.append(
                     {
                         "id": circ.id,
                         "status": str(circ.status),
-                        "path": [{"fp": fp, "nick": nick} for (fp, nick) in circ.path],
+                        "path": path,
                     }
                 )
 
@@ -108,7 +171,6 @@ def read_tor_stats():
             return data
 
         except Exception as e:
-            # Si Tor cae o el ControlPort se queda colgado, forzamos reconexión
             _reset_controller()
             raise e
 
